@@ -31,7 +31,9 @@ go.work.sum
 .idea/
 .vscode/
 
+dist/
 bin/
+
 golangci-lint.xml
 COMPLETION_SUMMARY.md
 SUMMARY.md
