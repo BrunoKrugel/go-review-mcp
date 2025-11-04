@@ -16,8 +16,6 @@ Go Review MCP fetches the latest style guides directly from official and recomme
 
 - [Uber Go Style Guide](https://github.com/uber-go/guide/blob/master/style.md)
 
-The server provides MCP tools and prompts that AI assistants can use to review Go code against these official guidelines.
-
 ## Features
 
 ### Tools
