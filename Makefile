@@ -11,7 +11,11 @@ help:
 
 .PHONY: build
 build: ## Builds the application for production
-	go build -ldflags="-w -s" -v -o ./bin/go-review-mcp .
+	go build -ldflags="-w -s" -v -o ./bin/go-review-mcp ./cmd/server
+
+.PHONY: build-local
+build-local: ## Builds the application for local development with debug symbols
+	go build -v -o ./bin/go-review-mcp ./cmd/server
 
 .PHONY: clean
 clean: ## Runs mod tidy
@@ -26,8 +30,12 @@ update: ## Update go modules
 ########################################################################################################################
 
 .PHONY: run
-run: ## Execute the application locally
-	go run -race .
+run: ## Execute the application locally in stdio mode
+	go run ./cmd/server
+
+.PHONY: run-http
+run-http: ## Execute the application locally in HTTP mode
+	TRANSPORT=http PORT=3000 go run ./cmd/server -transport=http -port=3000
 
 .PHONY: test
 test: # Runs all the tests in the application and returns if they passed or failed, along with a coverage percentage

@@ -28,8 +28,10 @@ go.work.sum
 .env
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
 
 bin/
 golangci-lint.xml
+COMPLETION_SUMMARY.md
+SUMMARY.md
