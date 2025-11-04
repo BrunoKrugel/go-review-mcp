@@ -1,4 +1,4 @@
-module github.com/bruno-krugel/go-review-mcp
+module github.com/BrunoKrugel/go-review-mcp
 
 go 1.25.3
 

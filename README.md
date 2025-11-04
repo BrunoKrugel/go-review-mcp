@@ -4,11 +4,16 @@ A Model Context Protocol (MCP) server that provides real-time access to official
 
 ## Overview
 
-Go Review MCP fetches the latest style guides directly from official sources:
+Go Review MCP fetches the latest style guides directly from official and recommended sources:
+
+### Official
 
 - [Google Go Style Guide](https://google.github.io/styleguide/go/guide)
 - [Google Go Style Decisions](https://google.github.io/styleguide/go/decisions)
 - [Google Go Best Practices](https://google.github.io/styleguide/go/best-practices)
+
+### Recommended
+
 - [Uber Go Style Guide](https://github.com/uber-go/guide/blob/master/style.md)
 
 The server provides MCP tools and prompts that AI assistants can use to review Go code against these official guidelines.
@@ -39,13 +44,13 @@ The server provides MCP tools and prompts that AI assistants can use to review G
 ### Using go install
 
 ```bash
-go install github.com/bruno-krugel/go-review-mcp@latest
+go install github.com/BrunoKrugel/go-review-mcp@latest
 ```
 
 ### From source
 
 ```bash
-git clone https://github.com/bruno-krugel/go-review-mcp.git
+git clone https://github.com/BrunoKrugel/go-review-mcp.git
 cd go-review-mcp
 make build
 ```

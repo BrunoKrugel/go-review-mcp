@@ -49,7 +49,7 @@ changelog:
 
 release:
   github:
-    owner: bruno-krugel
+    owner: BrunoKrugel
     name: go-review-mcp
   draft: false
   prerelease: auto
