@@ -7,7 +7,7 @@ before:
 
 builds:
   - id: go-review-mcp
-    main: ./cmd/server
+    main: .
     binary: go-review-mcp
     env:
       - CGO_ENABLED=0
