@@ -1,14 +1,5 @@
 version: 2
 
-project_name: mcp
-metadata:
-  mod_timestamp: "{{ .CommitTimestamp }}"
-  description: Go Review MCP server
-  homepage: https://github.com/BrunoKrugel/go-review-mcp
-  license: MIT
-  maintainers:
-    - Bruno Krugel <brunokrugel@gmail.com>
-
 before:
   hooks:
     - go mod tidy
@@ -51,7 +42,6 @@ snapshot:
 changelog:
   sort: asc
   use: git
-  divider: "---"
   filters:
     exclude:
       - "^test:"
@@ -108,6 +98,10 @@ release:
     ```
 
   footer: |
+    ## Usage
+
+
+    ---
 
     **Full Changelog**: https://github.com/BrunoKrugel/go-review-mcp/compare/{{ .PreviousTag }}...{{ .Tag }}
 
