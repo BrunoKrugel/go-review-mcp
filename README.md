@@ -1,4 +1,4 @@
-# Go Review MCP (WIP)
+# Go Review MCP
 
 A Model Context Protocol (MCP) server that provides real-time access to official Go style guides for intelligent code review.
 
@@ -87,9 +87,7 @@ If installed from source, use the full path to the binary:
 }
 ```
 
-### VS Code with Cline Extension
-
-Add to Cline MCP settings:
+### Cursor or VS Code Extension
 
 ```json
 {
@@ -102,18 +100,16 @@ Add to Cline MCP settings:
 }
 ```
 
-### Cursor
-
-Add to Cursor's MCP settings (Settings > Features > MCP):
+### Crush
 
 ```json
 {
-  "mcpServers": {
-    "go-review": {
-      "command": "go-review-mcp",
-      "args": []
-    }
-  }
+  "go-review-mcp": {
+    "type": "stdio",
+    "command": "go-review-mcp",
+    "timeout": 120,
+    "disabled": false
+  },
 }
 ```
 
