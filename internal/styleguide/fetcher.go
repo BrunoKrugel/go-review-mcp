@@ -9,10 +9,14 @@ import (
 	"time"
 )
 
-// StyleGuideURL represents a style guide source
+// StyleGuideURL represents a style guide source with its location
+// and metadata.
 type StyleGuideURL struct {
-	Name        string
-	URL         string
+	// Name is a unique identifier for this guide
+	Name string
+	// URL is the location to fetch the guide content
+	URL string
+	// Description provides a human-readable explanation
 	Description string
 }
 
@@ -60,11 +64,15 @@ type Fetcher struct {
 	cacheMu   sync.RWMutex
 }
 
-// CachedContent represents cached style guide content
+// CachedContent holds cached style guide content with metadata
+// for cache invalidation and freshness checking.
 type CachedContent struct {
-	Content   string
+	// Content is the cached guide text
+	Content string
+	// FetchedAt records when the content was retrieved
 	FetchedAt time.Time
-	URL       string
+	// URL is the source of this cached content
+	URL string
 }
 
 // NewFetcher creates a new style guide fetcher
@@ -94,7 +102,7 @@ func (f *Fetcher) FetchStyleGuide(ctx context.Context, url string) (string, erro
 		if exists {
 			return cached.Content, nil
 		}
-		return "", fmt.Errorf("failed to fetch %s: %w", url, err)
+		return "", fmt.Errorf("fetch %s: %w", url, err)
 	}
 
 	f.cacheMu.Lock()
@@ -111,24 +119,24 @@ func (f *Fetcher) FetchStyleGuide(ctx context.Context, url string) (string, erro
 func (f *Fetcher) fetchFromURL(ctx context.Context, url string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
+		return "", fmt.Errorf("create request for %s: %w", url, err)
 	}
 
 	req.Header.Set("User-Agent", f.userAgent)
 
 	resp, err := f.client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch: %w", err)
+		return "", fmt.Errorf("http request to %s: %w", url, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return "", fmt.Errorf("http %d from %s", resp.StatusCode, url)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to read response: %w", err)
+		return "", fmt.Errorf("read response from %s: %w", url, err)
 	}
 
 	return string(body), nil
@@ -170,18 +178,18 @@ func (f *Fetcher) FetchAll(ctx context.Context) (map[string]string, error) {
 	}()
 
 	guides := make(map[string]string)
-	var errors []error
+	var fetchErrors []error
 
 	for r := range results {
 		if r.err != nil {
-			errors = append(errors, fmt.Errorf("%s: %w", r.name, r.err))
+			fetchErrors = append(fetchErrors, fmt.Errorf("%s: %w", r.name, r.err))
 			continue
 		}
 		guides[r.name] = r.content
 	}
 
-	if len(errors) > 0 && len(guides) == 0 {
-		return nil, fmt.Errorf("failed to fetch any style guides: %v", errors)
+	if len(fetchErrors) > 0 && len(guides) == 0 {
+		return nil, fmt.Errorf("failed to fetch any style guides: %v", fetchErrors)
 	}
 
 	return guides, nil

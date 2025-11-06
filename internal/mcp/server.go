@@ -18,6 +18,8 @@ import (
 const (
 	sourceAll = "all"
 
+	// maxContentPreview is the character limit for content previews in search results
+	// to keep response sizes manageable while providing useful context
 	maxContentPreview = 500
 )
 
@@ -63,34 +65,22 @@ func (s *Server) registerTools() {
 
 	s.AddTool(mcp.Tool{
 		Name:        "fetch_live_guide",
-		Description: "Fetch and parse the latest style guide content from official URLs. Call this first before using other tools.",
+		Description: "Fetch and parse the latest style guide content from all official URLs (Google and Uber). Call this first before using other tools.",
 		InputSchema: mcp.ToolInputSchema{
-			Type: "object",
-			Properties: map[string]any{
-				"source": map[string]any{
-					"type":        "string",
-					"description": "Which guide to fetch: 'google-guide', 'google-decisions', 'google-practices', 'uber', or 'all'",
-					"enum":        []string{"google-guide", "google-decisions", "google-practices", "uber", sourceAll},
-				},
-			},
-			Required: []string{"source"},
+			Type:       "object",
+			Properties: map[string]any{},
 		},
 	}, s.handleFetchLiveGuide)
 
 	s.AddTool(mcp.Tool{
 		Name:        "search_live_guide",
-		Description: "Search through live-fetched style guide content for specific topics or patterns",
+		Description: "Search through all live-fetched style guides for specific topics or patterns",
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
 				"query": map[string]any{
 					"type":        "string",
 					"description": "Search query to find in guide content",
-				},
-				"guide": map[string]any{
-					"type":        "string",
-					"description": "Which guide to search: 'google-guide', 'google-decisions', 'google-practices', 'uber', or 'all'",
-					"enum":        []string{"google-guide", "google-decisions", "google-practices", "uber", sourceAll},
 				},
 			},
 			Required: []string{"query"},
@@ -99,7 +89,7 @@ func (s *Server) registerTools() {
 
 	s.AddTool(mcp.Tool{
 		Name:        "get_guide_topic",
-		Description: "Get all content related to a specific topic from live-fetched guides",
+		Description: "Get all content related to a specific topic from all live-fetched guides",
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
@@ -107,11 +97,6 @@ func (s *Server) registerTools() {
 					"type":        "string",
 					"description": "Topic to retrieve: 'naming', 'errors', 'concurrency', 'testing', 'interfaces', 'formatting', 'comments', 'imports', 'context'",
 					"enum":        []string{"naming", "errors", "concurrency", "testing", "interfaces", "formatting", "comments", "imports", "context"},
-				},
-				"guide": map[string]any{
-					"type":        "string",
-					"description": "Which guide to search: 'google-guide', 'google-decisions', 'google-practices', 'uber', or 'all'",
-					"enum":        []string{"google-guide", "google-decisions", "google-practices", "uber", sourceAll},
 				},
 			},
 			Required: []string{"topic"},
@@ -158,6 +143,7 @@ func (s *Server) registerPrompts() {
 
 func createPromptHandler(p prompts.Prompt) func(ctx context.Context, request mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 	return func(ctx context.Context, request mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
+		// Context intentionally unused - this is pure string manipulation
 		template := p.Template
 
 		if request.Params.Arguments != nil {
@@ -220,61 +206,27 @@ func (s *Server) handleGetReviewGuidelines(ctx context.Context, request mcp.Call
 }
 
 func (s *Server) handleFetchLiveGuide(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	source := mcp.ParseString(request, "source", "")
-
-	if source == "" {
-		return mcp.NewToolResultError("missing required parameter: source"), nil
-	}
-
-	if source == sourceAll {
-		guides, err := s.fetcher.FetchAll(ctx)
-		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("failed to fetch guides: %v", err)), nil
-		}
-
-		s.indicesMu.Lock()
-		for name, content := range guides {
-			s.indices[name] = styleguide.ParseContent(content)
-		}
-		s.indicesMu.Unlock()
-
-		output := "Successfully fetched and indexed all style guides:\n"
-		for name := range guides {
-			output += fmt.Sprintf("- %s\n", name)
-		}
-		return mcp.NewToolResultText(output), nil
-	}
-
-	url := s.getURLForSource(source)
-	if url == "" {
-		return mcp.NewToolResultError(fmt.Sprintf("unknown source: %s", source)), nil
-	}
-
-	content, err := s.fetcher.FetchStyleGuide(ctx, url)
+	// Always fetch all guides
+	guides, err := s.fetcher.FetchAll(ctx)
 	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("failed to fetch guide: %v", err)), nil
+		return mcp.NewToolResultError(fmt.Sprintf("failed to fetch guides: %v", err)), nil
 	}
-
-	parsed := styleguide.ParseContent(content)
 
 	s.indicesMu.Lock()
-	s.indices[source] = parsed
+	for name, content := range guides {
+		s.indices[name] = styleguide.ParseContent(content)
+	}
 	s.indicesMu.Unlock()
 
-	sections := parsed.Sections
-	output := fmt.Sprintf("# %s\n\nFetched and indexed %d sections\n\n", source, len(sections))
-	output += "## Table of Contents\n\n"
-	for _, section := range sections {
-		indent := strings.Repeat("  ", section.Level-1)
-		output += fmt.Sprintf("%s- %s\n", indent, section.Title)
+	output := "Successfully fetched and indexed all style guides:\n"
+	for name := range guides {
+		output += fmt.Sprintf("- %s\n", name)
 	}
-
 	return mcp.NewToolResultText(output), nil
 }
 
 func (s *Server) handleSearchLiveGuide(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	query := mcp.ParseString(request, "query", "")
-	guide := mcp.ParseString(request, "guide", sourceAll)
 
 	s.indicesMu.RLock()
 	indicesCount := len(s.indices)
@@ -284,15 +236,13 @@ func (s *Server) handleSearchLiveGuide(ctx context.Context, request mcp.CallTool
 		return mcp.NewToolResultError("no guides fetched yet. Use fetch_live_guide first"), nil
 	}
 
+	// Always search all guides
 	var allResults []styleguide.Section
-	guidesToSearch := s.getGuidesToSearch(guide)
 
 	s.indicesMu.RLock()
-	for _, guideName := range guidesToSearch {
-		if index, ok := s.indices[guideName]; ok {
-			results := index.SearchContent(query)
-			allResults = append(allResults, results...)
-		}
+	for _, index := range s.indices {
+		results := index.SearchContent(query)
+		allResults = append(allResults, results...)
 	}
 	s.indicesMu.RUnlock()
 
@@ -310,7 +260,6 @@ func (s *Server) handleSearchLiveGuide(ctx context.Context, request mcp.CallTool
 
 func (s *Server) handleGetGuideTopic(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	topic := mcp.ParseString(request, "topic", "")
-	guide := mcp.ParseString(request, "guide", sourceAll)
 
 	if topic == "" {
 		return mcp.NewToolResultError("missing required parameter: topic"), nil
@@ -324,15 +273,13 @@ func (s *Server) handleGetGuideTopic(ctx context.Context, request mcp.CallToolRe
 		return mcp.NewToolResultError("no guides fetched yet. Use fetch_live_guide first"), nil
 	}
 
+	// Always search all guides
 	var allSections []styleguide.Section
-	guidesToSearch := s.getGuidesToSearch(guide)
 
 	s.indicesMu.RLock()
-	for _, guideName := range guidesToSearch {
-		if index, ok := s.indices[guideName]; ok {
-			sections := index.GetTopic(topic)
-			allSections = append(allSections, sections...)
-		}
+	for _, index := range s.indices {
+		sections := index.GetTopic(topic)
+		allSections = append(allSections, sections...)
 	}
 	s.indicesMu.RUnlock()
 
@@ -346,28 +293,6 @@ func (s *Server) handleGetGuideTopic(ctx context.Context, request mcp.CallToolRe
 	}
 
 	return mcp.NewToolResultText(output), nil
-}
-
-func (s *Server) getURLForSource(source string) string {
-	switch source {
-	case "google-guide":
-		return "https://google.github.io/styleguide/go/guide"
-	case "google-decisions":
-		return "https://google.github.io/styleguide/go/decisions"
-	case "google-practices":
-		return "https://google.github.io/styleguide/go/best-practices"
-	case "uber":
-		return "https://raw.githubusercontent.com/uber-go/guide/master/style.md"
-	default:
-		return ""
-	}
-}
-
-func (s *Server) getGuidesToSearch(guide string) []string {
-	if guide == sourceAll || guide == "" {
-		return []string{"google-guide", "google-decisions", "google-practices", "uber"}
-	}
-	return []string{guide}
 }
 
 func truncateContent(content string, maxLen int) string {
