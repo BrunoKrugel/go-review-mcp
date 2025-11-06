@@ -4,19 +4,28 @@ import (
 	"strings"
 )
 
-// ContentIndex represents indexed style guide content
+// ContentIndex represents indexed and searchable style guide content
+// organized by topics and sections for efficient retrieval.
 type ContentIndex struct {
-	Content  string
-	Topics   map[string][]Section
+	// Content is the raw style guide text
+	Content string
+	// Topics maps topic names to related sections
+	Topics map[string][]Section
+	// Sections contains all parsed sections in order
 	Sections []Section
 }
 
-// Section represents a section in the style guide
+// Section represents a single section in a style guide with its
+// hierarchical position and content.
 type Section struct {
-	Title   string
+	// Title is the section heading
+	Title string
+	// Content is the section body text
 	Content string
-	Anchor  string
-	Level   int
+	// Anchor is the URL fragment identifier
+	Anchor string
+	// Level indicates heading depth (1=h1, 2=h2, etc.)
+	Level int
 }
 
 // ParseContent parses style guide content into structured sections
@@ -235,14 +244,15 @@ func (idx *ContentIndex) GetTopic(topic string) []Section {
 	return idx.Topics[strings.ToLower(topic)]
 }
 
-// GetSection returns a section by title
-func (idx *ContentIndex) GetSection(title string) *Section {
+// GetSection returns a section by title. Returns a copy of the section
+// and a boolean indicating if it was found.
+func (idx *ContentIndex) GetSection(title string) (Section, bool) {
 	for _, section := range idx.Sections {
 		if strings.EqualFold(section.Title, title) {
-			return &section
+			return section, true
 		}
 	}
-	return nil
+	return Section{}, false
 }
 
 func generateAnchor(title string) string {

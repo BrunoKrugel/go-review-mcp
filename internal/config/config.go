@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log"
 	"os"
 	"strconv"
 	"time"
@@ -13,12 +14,17 @@ const (
 	DefaultCacheTTL = 24 * time.Hour
 )
 
-// Config holds the server configuration
+// Config holds the server configuration including transport type,
+// logging level, cache TTL, and server port.
 type Config struct {
+	// Transport specifies the transport type ("stdio" or "http")
 	Transport string
-	LogLevel  string
-	CacheTTL  time.Duration
-	Port      int
+	// LogLevel sets the logging verbosity ("info", "debug", "error")
+	LogLevel string
+	// CacheTTL defines how long cached content remains valid
+	CacheTTL time.Duration
+	// Port is the HTTP server port (used when Transport is "http")
+	Port int
 }
 
 // LoadFromEnv loads configuration from environment variables
@@ -40,19 +46,31 @@ func getEnv(key, defaultValue string) string {
 }
 
 func getEnvInt(key string, defaultValue int) int {
-	if value := os.Getenv(key); value != "" {
-		if i, err := strconv.Atoi(value); err == nil {
-			return i
-		}
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
 	}
-	return defaultValue
+
+	i, err := strconv.Atoi(value)
+	if err != nil {
+		log.Printf("warning: invalid integer for %s=%q, using default %d: %v",
+			key, value, defaultValue, err)
+		return defaultValue
+	}
+	return i
 }
 
 func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
-	if value := os.Getenv(key); value != "" {
-		if d, err := time.ParseDuration(value); err == nil {
-			return d
-		}
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
 	}
-	return defaultValue
+
+	d, err := time.ParseDuration(value)
+	if err != nil {
+		log.Printf("warning: invalid duration for %s=%q, using default %v: %v",
+			key, value, defaultValue, err)
+		return defaultValue
+	}
+	return d
 }

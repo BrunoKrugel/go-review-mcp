@@ -1,18 +1,25 @@
 package prompts
 
-// Prompt represents an MCP prompt
+// Prompt represents an MCP prompt template with its metadata and arguments.
 type Prompt struct {
-	Name        string
+	// Name is the unique identifier for the prompt
+	Name string
+	// Description explains what the prompt does
 	Description string
-	Template    string
-	Arguments   []PromptArgument
+	// Template is the prompt text with placeholders
+	Template string
+	// Arguments defines the parameters this prompt accepts
+	Arguments []PromptArgument
 }
 
-// PromptArgument represents a prompt parameter
+// PromptArgument represents a single parameter for a prompt.
 type PromptArgument struct {
-	Name        string
+	// Name is the argument identifier
+	Name string
+	// Description explains what the argument is for
 	Description string
-	Required    bool
+	// Required indicates if this argument must be provided
+	Required bool
 }
 
 // GetAllPrompts returns all available prompts

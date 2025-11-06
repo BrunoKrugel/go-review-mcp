@@ -20,13 +20,10 @@ Go Review MCP fetches the latest style guides directly from official and recomme
 
 ### Tools
 
-- **get_style_rule** - Retrieve specific style guide rules by ID
-- **search_style_rules** - Search for rules matching a query
-- **list_all_rules** - List all available style guide rules
-- **get_review_guidelines** - Get comprehensive guidelines for specific topics (naming, errors, concurrency, testing, interfaces)
-- **fetch_live_guide** - Fetch and index the latest style guides from official URLs
-- **search_live_guide** - Search through live-fetched guide content
-- **get_guide_topic** - Extract topic-specific content from live guides
+- **fetch_live_guide** - Fetch and index the latest style guides from all official sources (Google and Uber)
+- **search_live_guide** - Search through all live-fetched guide content for specific patterns
+- **get_guide_topic** - Extract topic-specific content from all live guides (naming, errors, concurrency, testing, interfaces, formatting, comments, imports, context)
+- **get_review_guidelines** - Get curated review guidelines for specific topics
 
 ### Prompts
 
@@ -133,37 +130,68 @@ npx @modelcontextprotocol/inspector http://localhost:8080/mcp
 
 ### Basic Workflow
 
-1. Start by fetching the latest guides:
+1. **Fetch the latest guides**:
    ```
-   Use the fetch_live_guide tool with source="all"
+   Use the fetch_live_guide tool (no parameters needed)
    ```
+   This fetches all style guides from Google and Uber in one operation.
 
-2. Review your code:
+2. **Review your code**:
    ```
    Use the review_code prompt with your Go code
    ```
 
-3. Get specific guidance:
+3. **Get specific guidance**:
    ```
    Use get_guide_topic for focused advice on topics like "naming" or "errors"
    ```
+   Searches automatically across all fetched guides.
 
-### Example Prompts
+4. **Search for patterns**:
+   ```
+   Use search_live_guide to find specific content across all guides
+   ```
 
-**For comprehensive review:**
+### Example Interactions
+
+**Fetch all guides:**
 ```
-Please review this Go code using the review_code prompt
+Claude, fetch the latest Go style guides
 ```
 
-**For specific topics:**
+**Comprehensive code review:**
+```
+Please review this Go code:
+[paste your code]
+```
+
+**Check specific topics:**
 ```
 Check the naming conventions in this code
 ```
 
-**For searching guidelines:**
+**Search for guidelines:**
 ```
-Search for guidelines about error handling
+Search the style guides for information about error wrapping
 ```
+
+**Get topic-specific content:**
+```
+Show me all guidelines about concurrency from the style guides
+```
+
+### Available Topics
+
+The following topics are automatically indexed across all guides:
+- `naming` - Naming conventions and identifier rules
+- `errors` - Error handling and error wrapping patterns
+- `concurrency` - Goroutines, channels, mutexes, context usage
+- `testing` - Test structure, table-driven tests, best practices
+- `interfaces` - Interface design and usage patterns
+- `formatting` - Code formatting and style
+- `comments` - Documentation and comment conventions
+- `imports` - Import organization and grouping
+- `context` - Context.Context usage and patterns
 
 ## Configuration Options
 
@@ -202,10 +230,18 @@ make run
 
 ## How It Works
 
-1. **Live Fetching**: The server fetches style guides from official URLs and caches them for 24 hours
+1. **Automatic Fetching**: The server fetches all style guides (Google and Uber) concurrently and caches them for 24 hours
 2. **Content Parsing**: Guides are parsed into structured sections with automatic topic indexing
-3. **Embedded Fallback**: Essential rules are embedded for offline use
-4. **MCP Integration**: Tools and prompts are exposed via the Model Context Protocol
+3. **Unified Search**: All search and topic queries automatically scan across all fetched guides
+4. **MCP Integration**: Simple tools and prompts are exposed via the Model Context Protocol
+
+### Key Features
+
+- **Comprehensive Coverage**: Always fetches and searches all available style guides
+- **Concurrent Fetching**: All guides are fetched in parallel for fast initialization
+- **Smart Caching**: 24-hour cache reduces network requests and improves performance
+- **Topic Indexing**: Automatic categorization of content by topics (naming, errors, concurrency, etc.)
+- **No Configuration**: Works out of the box - no need to choose which guides to use
 
 ## Architecture
 
@@ -217,17 +253,30 @@ make run
          │ MCP Protocol (stdio/http)
 ┌────────▼──────────────────────┐
 │  Go Review MCP Server         │
-│  - 7 Tools                    │
+│  - 4 Tools                    │
 │  - 6 Prompts                  │
-│  - HTTP Fetcher (24h cache)   │
+│  - Concurrent HTTP Fetcher    │
+│  - 24h Cache (in-memory)      │
 │  - Content Parser             │
-│  - Embedded Rules             │
+│  - Topic Indexer              │
 └────────┬──────────────────────┘
-         │ HTTPS
+         │ HTTPS (parallel)
 ┌────────▼──────────────────────┐
-│  Official Style Guide URLs    │
+│  Official Style Guide Sources │
+│  ├─ Google Go Guide           │
+│  ├─ Google Go Decisions       │
+│  ├─ Google Go Best Practices  │
+│  └─ Uber Go Style Guide       │
 └───────────────────────────────┘
 ```
+
+### Data Flow
+
+1. **Initialization**: `fetch_live_guide` fetches all 4 guides concurrently
+2. **Parsing**: Each guide is parsed into sections with metadata
+3. **Indexing**: Sections are automatically categorized by topics
+4. **Query**: Search and topic tools scan all indexed content
+5. **Caching**: Results are cached for 24 hours to improve performance
 
 ## Requirements
 
