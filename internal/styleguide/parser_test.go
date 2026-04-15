@@ -33,10 +33,10 @@ Content for section two.`
 		index   int
 		level   int
 	}{
-		{0, "Main Title", 1, "Some intro text."},
-		{1, "Section One", 2, "Content for section one."},
-		{2, "Subsection", 3, "More details here."},
-		{3, "Section Two", 2, "Content for section two."},
+		{"Main Title", "Some intro text.", 0, 1},
+		{"Section One", "Content for section one.", 1, 2},
+		{"Subsection", "More details here.", 2, 3},
+		{"Section Two", "Content for section two.", 3, 2},
 	}
 
 	for _, tt := range tests {

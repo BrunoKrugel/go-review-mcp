@@ -29,6 +29,7 @@ type Server struct {
 	fetcher   *styleguide.Fetcher
 	indices   map[string]*styleguide.ContentIndex
 	indicesMu sync.RWMutex
+	fetchOnce sync.Once
 }
 
 // NewServer creates a new MCP server with default configuration
@@ -60,18 +61,6 @@ func NewServerWithConfig(cfg *config.Config) *Server {
 }
 
 func (s *Server) registerTools() {
-	// Removed embedded guide tools (get_style_rule, search_style_rules, list_all_rules)
-	// All operations now use live-fetched guides only
-
-	s.AddTool(mcp.Tool{
-		Name:        "fetch_live_guide",
-		Description: "Fetch and parse the latest Go language style guide content from all official URLs (Google and Uber). Call this first before using other tools. This tool is specifically for reviewing Go (Golang) code only.",
-		InputSchema: mcp.ToolInputSchema{
-			Type:       "object",
-			Properties: map[string]any{},
-		},
-	}, s.handleFetchLiveGuide)
-
 	s.AddTool(mcp.Tool{
 		Name:        "search_live_guide",
 		Description: "Search through all live-fetched Go language style guides for specific topics or patterns. This tool is specifically for Go (Golang) code review only.",
@@ -206,39 +195,32 @@ func (s *Server) handleGetReviewGuidelines(ctx context.Context, request mcp.Call
 	return mcp.NewToolResultText(output.String()), nil
 }
 
-func (s *Server) handleFetchLiveGuide(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	// Always fetch all guides
-	guides, err := s.fetcher.FetchAll(ctx)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("failed to fetch guides: %v", err)), nil
-	}
+// ensureGuides lazily fetches and indexes all style guides on first use.
+func (s *Server) ensureGuides(ctx context.Context) error {
+	var fetchErr error
+	s.fetchOnce.Do(func() {
+		guides, err := s.fetcher.FetchAll(ctx)
+		if err != nil {
+			fetchErr = fmt.Errorf("failed to fetch style guides: %w", err)
+			return
+		}
 
-	s.indicesMu.Lock()
-	for name, content := range guides {
-		s.indices[name] = styleguide.ParseContent(content)
-	}
-	s.indicesMu.Unlock()
-
-	var output strings.Builder
-	output.WriteString("Successfully fetched and indexed all style guides:\n")
-	for name := range guides {
-		output.WriteString(fmt.Sprintf("- %s\n", name))
-	}
-	return mcp.NewToolResultText(output.String()), nil
+		s.indicesMu.Lock()
+		for name, content := range guides {
+			s.indices[name] = styleguide.ParseContent(content)
+		}
+		s.indicesMu.Unlock()
+	})
+	return fetchErr
 }
 
 func (s *Server) handleSearchLiveGuide(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	query := mcp.ParseString(request, "query", "")
-
-	s.indicesMu.RLock()
-	indicesCount := len(s.indices)
-	s.indicesMu.RUnlock()
-
-	if indicesCount == 0 {
-		return mcp.NewToolResultError("no guides fetched yet. Use fetch_live_guide first"), nil
+	if err := s.ensureGuides(ctx); err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	// Always search all guides
+	query := mcp.ParseString(request, "query", "")
+
 	var allResults []styleguide.Section
 
 	s.indicesMu.RLock()
@@ -268,15 +250,10 @@ func (s *Server) handleGetGuideTopic(ctx context.Context, request mcp.CallToolRe
 		return mcp.NewToolResultError("missing required parameter: topic"), nil
 	}
 
-	s.indicesMu.RLock()
-	indicesCount := len(s.indices)
-	s.indicesMu.RUnlock()
-
-	if indicesCount == 0 {
-		return mcp.NewToolResultError("no guides fetched yet. Use fetch_live_guide first"), nil
+	if err := s.ensureGuides(ctx); err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	// Always search all guides
 	var allSections []styleguide.Section
 
 	s.indicesMu.RLock()
