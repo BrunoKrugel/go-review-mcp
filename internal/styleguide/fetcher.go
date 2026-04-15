@@ -124,6 +124,7 @@ func (f *Fetcher) fetchFromURL(ctx context.Context, url string) (string, error) 
 
 	req.Header.Set("User-Agent", f.userAgent)
 
+	// nosec:G107,G704 -- URLs are hardcoded constants, not user input
 	resp, err := f.client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("http request to %s: %w", url, err)

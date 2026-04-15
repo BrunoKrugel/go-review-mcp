@@ -50,6 +50,7 @@ func getEnvInt(key string, defaultValue int) int {
 
 	i, err := strconv.Atoi(value)
 	if err != nil {
+		// nosec:G706 -- value comes from process environment, not user input
 		log.Printf("warning: invalid integer for %s=%q, using default %d: %v",
 			key, value, defaultValue, err)
 		return defaultValue
@@ -65,6 +66,7 @@ func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
 
 	d, err := time.ParseDuration(value)
 	if err != nil {
+		// nosec:G706 -- value comes from process environment, not user input
 		log.Printf("warning: invalid duration for %s=%q, using default %v: %v",
 			key, value, defaultValue, err)
 		return defaultValue

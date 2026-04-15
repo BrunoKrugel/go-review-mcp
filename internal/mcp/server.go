@@ -63,7 +63,7 @@ func NewServerWithConfig(cfg *config.Config) *Server {
 func (s *Server) registerTools() {
 	s.AddTool(mcp.Tool{
 		Name:        "search_live_guide",
-		Description: "Search through all live-fetched Go language style guides for specific topics or patterns. This tool is specifically for Go (Golang) code review only.",
+		Description: "Search through all live-fetched Go language style guides for specific topics or patterns. This tool is specifically for Go  code review only.",
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
@@ -78,7 +78,7 @@ func (s *Server) registerTools() {
 
 	s.AddTool(mcp.Tool{
 		Name:        "get_guide_topic",
-		Description: "Get all Go language style guide content related to a specific topic from all live-fetched guides. This tool is specifically for Go (Golang) code review only.",
+		Description: "Get all Go language style guide content related to a specific topic from all live-fetched guides. This tool is specifically for Go  code review only.",
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
@@ -94,7 +94,7 @@ func (s *Server) registerTools() {
 
 	s.AddTool(mcp.Tool{
 		Name:        "get_review_guidelines",
-		Description: "Get curated Go language code review guidelines covering major topics. This tool is specifically for Go (Golang) code review only.",
+		Description: "Get curated Go language code review guidelines covering major topics. This tool is specifically for Go  code review only.",
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
@@ -159,6 +159,7 @@ func createPromptHandler(p prompts.Prompt) func(ctx context.Context, request mcp
 	}
 }
 
+//nolint:gocritic // hugeParam: signature must match mcp.ToolHandlerFunc
 func (s *Server) handleGetReviewGuidelines(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	topic := mcp.ParseString(request, "topic", "")
 
@@ -214,6 +215,7 @@ func (s *Server) ensureGuides(ctx context.Context) error {
 	return fetchErr
 }
 
+//nolint:gocritic // hugeParam: signature must match mcp.ToolHandlerFunc
 func (s *Server) handleSearchLiveGuide(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	if err := s.ensureGuides(ctx); err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -235,14 +237,15 @@ func (s *Server) handleSearchLiveGuide(ctx context.Context, request mcp.CallTool
 	}
 
 	var output strings.Builder
-	output.WriteString(fmt.Sprintf("Found %d sections matching '%s':\n\n", len(allResults), query))
+	fmt.Fprintf(&output, "Found %d sections matching '%s':\n\n", len(allResults), query)
 	for _, section := range allResults {
-		output.WriteString(fmt.Sprintf("## %s\n\n%s\n\n---\n\n", section.Title, truncateContent(section.Content, maxContentPreview)))
+		fmt.Fprintf(&output, "## %s\n\n%s\n\n---\n\n", section.Title, truncateContent(section.Content, maxContentPreview))
 	}
 
 	return mcp.NewToolResultText(output.String()), nil
 }
 
+//nolint:gocritic // hugeParam: signature must match mcp.ToolHandlerFunc
 func (s *Server) handleGetGuideTopic(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	topic := mcp.ParseString(request, "topic", "")
 
@@ -268,9 +271,9 @@ func (s *Server) handleGetGuideTopic(ctx context.Context, request mcp.CallToolRe
 	}
 
 	var output strings.Builder
-	output.WriteString(fmt.Sprintf("# %s\n\nFound %d sections:\n\n", cases.Title(language.English).String(topic), len(allSections)))
+	fmt.Fprintf(&output, "# %s\n\nFound %d sections:\n\n", cases.Title(language.English).String(topic), len(allSections))
 	for _, section := range allSections {
-		output.WriteString(fmt.Sprintf("## %s\n\n%s\n\n---\n\n", section.Title, section.Content))
+		fmt.Fprintf(&output, "## %s\n\n%s\n\n---\n\n", section.Title, section.Content)
 	}
 
 	return mcp.NewToolResultText(output.String()), nil

@@ -38,7 +38,7 @@ func GetAllPrompts() []Prompt {
 func GetReviewCodePrompt() Prompt {
 	return Prompt{
 		Name:        "review_code",
-		Description: "Comprehensive Go (Golang) code review based on Google and Uber Go style guides. Use this only for Go code.",
+		Description: "Comprehensive Go  code review based on Google and Uber Go style guides. Use this only for Go code.",
 		Arguments: []PromptArgument{
 			{
 				Name:        "code",
@@ -116,7 +116,7 @@ End with a summary of the overall code quality and key recommendations.`,
 func GetCheckNamingPrompt() Prompt {
 	return Prompt{
 		Name:        "check_naming",
-		Description: "Review Go (Golang) code naming conventions. Use this only for Go code.",
+		Description: "Review Go  code naming conventions. Use this only for Go code.",
 		Arguments: []PromptArgument{
 			{
 				Name:        "code",
@@ -176,7 +176,7 @@ For each naming issue:
 func GetCheckErrorHandlingPrompt() Prompt {
 	return Prompt{
 		Name:        "check_error_handling",
-		Description: "Review Go (Golang) code error handling patterns. Use this only for Go code.",
+		Description: "Review Go  code error handling patterns. Use this only for Go code.",
 		Arguments: []PromptArgument{
 			{
 				Name:        "code",
@@ -239,7 +239,7 @@ For each error handling issue:
 func GetCheckConcurrencyPrompt() Prompt {
 	return Prompt{
 		Name:        "check_concurrency",
-		Description: "Review Go (Golang) code concurrency patterns. Use this only for Go code.",
+		Description: "Review Go  code concurrency patterns. Use this only for Go code.",
 		Arguments: []PromptArgument{
 			{
 				Name:        "code",
@@ -306,7 +306,7 @@ For each concurrency issue:
 func GetCheckTestingPrompt() Prompt {
 	return Prompt{
 		Name:        "check_testing",
-		Description: "Review Go (Golang) test code quality. Use this only for Go code.",
+		Description: "Review Go  test code quality. Use this only for Go code.",
 		Arguments: []PromptArgument{
 			{
 				Name:        "code",
@@ -376,7 +376,7 @@ For each testing issue:
 func GetCheckInterfacesPrompt() Prompt {
 	return Prompt{
 		Name:        "check_interfaces",
-		Description: "Review Go (Golang) interface design and usage. Use this only for Go code.",
+		Description: "Review Go  interface design and usage. Use this only for Go code.",
 		Arguments: []PromptArgument{
 			{
 				Name:        "code",
