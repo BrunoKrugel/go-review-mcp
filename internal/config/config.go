@@ -15,12 +15,10 @@ const (
 )
 
 // Config holds the server configuration including transport type,
-// logging level, cache TTL, and server port.
+// cache TTL, and server port.
 type Config struct {
 	// Transport specifies the transport type ("stdio" or "http")
 	Transport string
-	// LogLevel sets the logging verbosity ("info", "debug", "error")
-	LogLevel string
 	// CacheTTL defines how long cached content remains valid
 	CacheTTL time.Duration
 	// Port is the HTTP server port (used when Transport is "http")
@@ -33,7 +31,6 @@ func LoadFromEnv() *Config {
 		Transport: getEnv("TRANSPORT", "stdio"),
 		Port:      getEnvInt("PORT", DefaultPort),
 		CacheTTL:  getEnvDuration("CACHE_TTL", DefaultCacheTTL),
-		LogLevel:  getEnv("LOG_LEVEL", "info"),
 	}
 	return cfg
 }

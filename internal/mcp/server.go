@@ -65,7 +65,7 @@ func (s *Server) registerTools() {
 
 	s.AddTool(mcp.Tool{
 		Name:        "fetch_live_guide",
-		Description: "Fetch and parse the latest style guide content from all official URLs (Google and Uber). Call this first before using other tools.",
+		Description: "Fetch and parse the latest Go language style guide content from all official URLs (Google and Uber). Call this first before using other tools. This tool is specifically for reviewing Go (Golang) code only.",
 		InputSchema: mcp.ToolInputSchema{
 			Type:       "object",
 			Properties: map[string]any{},
@@ -74,13 +74,13 @@ func (s *Server) registerTools() {
 
 	s.AddTool(mcp.Tool{
 		Name:        "search_live_guide",
-		Description: "Search through all live-fetched style guides for specific topics or patterns",
+		Description: "Search through all live-fetched Go language style guides for specific topics or patterns. This tool is specifically for Go (Golang) code review only.",
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
 				"query": map[string]any{
 					"type":        "string",
-					"description": "Search query to find in guide content",
+					"description": "Search query to find in Go style guide content",
 				},
 			},
 			Required: []string{"query"},
@@ -89,7 +89,7 @@ func (s *Server) registerTools() {
 
 	s.AddTool(mcp.Tool{
 		Name:        "get_guide_topic",
-		Description: "Get all content related to a specific topic from all live-fetched guides",
+		Description: "Get all Go language style guide content related to a specific topic from all live-fetched guides. This tool is specifically for Go (Golang) code review only.",
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
@@ -105,7 +105,7 @@ func (s *Server) registerTools() {
 
 	s.AddTool(mcp.Tool{
 		Name:        "get_review_guidelines",
-		Description: "Get curated review guidelines covering major topics",
+		Description: "Get curated Go language code review guidelines covering major topics. This tool is specifically for Go (Golang) code review only.",
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
@@ -177,7 +177,8 @@ func (s *Server) handleGetReviewGuidelines(ctx context.Context, request mcp.Call
 		return mcp.NewToolResultError("missing required parameter: topic"), nil
 	}
 
-	output := "# Go Code Review Guidelines\n\n"
+	var output strings.Builder
+	output.WriteString("# Go Code Review Guidelines\n\n")
 
 	topics := []string{topic}
 	if topic == sourceAll {
@@ -187,22 +188,22 @@ func (s *Server) handleGetReviewGuidelines(ctx context.Context, request mcp.Call
 	for _, t := range topics {
 		switch t {
 		case "naming":
-			output += s.getNamingGuidelines()
+			output.WriteString(s.getNamingGuidelines())
 		case "errors":
-			output += s.getErrorGuidelines()
+			output.WriteString(s.getErrorGuidelines())
 		case "concurrency":
-			output += s.getConcurrencyGuidelines()
+			output.WriteString(s.getConcurrencyGuidelines())
 		case "testing":
-			output += s.getTestingGuidelines()
+			output.WriteString(s.getTestingGuidelines())
 		case "interfaces":
-			output += s.getInterfaceGuidelines()
+			output.WriteString(s.getInterfaceGuidelines())
 		default:
 			return mcp.NewToolResultError(fmt.Sprintf("unknown topic: %s", t)), nil
 		}
-		output += "\n"
+		output.WriteString("\n")
 	}
 
-	return mcp.NewToolResultText(output), nil
+	return mcp.NewToolResultText(output.String()), nil
 }
 
 func (s *Server) handleFetchLiveGuide(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -218,11 +219,12 @@ func (s *Server) handleFetchLiveGuide(ctx context.Context, request mcp.CallToolR
 	}
 	s.indicesMu.Unlock()
 
-	output := "Successfully fetched and indexed all style guides:\n"
+	var output strings.Builder
+	output.WriteString("Successfully fetched and indexed all style guides:\n")
 	for name := range guides {
-		output += fmt.Sprintf("- %s\n", name)
+		output.WriteString(fmt.Sprintf("- %s\n", name))
 	}
-	return mcp.NewToolResultText(output), nil
+	return mcp.NewToolResultText(output.String()), nil
 }
 
 func (s *Server) handleSearchLiveGuide(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -250,12 +252,13 @@ func (s *Server) handleSearchLiveGuide(ctx context.Context, request mcp.CallTool
 		return mcp.NewToolResultText(fmt.Sprintf("No results found for query: %s", query)), nil
 	}
 
-	output := fmt.Sprintf("Found %d sections matching '%s':\n\n", len(allResults), query)
+	var output strings.Builder
+	output.WriteString(fmt.Sprintf("Found %d sections matching '%s':\n\n", len(allResults), query))
 	for _, section := range allResults {
-		output += fmt.Sprintf("## %s\n\n%s\n\n---\n\n", section.Title, truncateContent(section.Content, maxContentPreview))
+		output.WriteString(fmt.Sprintf("## %s\n\n%s\n\n---\n\n", section.Title, truncateContent(section.Content, maxContentPreview)))
 	}
 
-	return mcp.NewToolResultText(output), nil
+	return mcp.NewToolResultText(output.String()), nil
 }
 
 func (s *Server) handleGetGuideTopic(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -287,19 +290,25 @@ func (s *Server) handleGetGuideTopic(ctx context.Context, request mcp.CallToolRe
 		return mcp.NewToolResultText(fmt.Sprintf("No content found for topic: %s", topic)), nil
 	}
 
-	output := fmt.Sprintf("# %s\n\nFound %d sections:\n\n", cases.Title(language.English).String(topic), len(allSections))
+	var output strings.Builder
+	output.WriteString(fmt.Sprintf("# %s\n\nFound %d sections:\n\n", cases.Title(language.English).String(topic), len(allSections)))
 	for _, section := range allSections {
-		output += fmt.Sprintf("## %s\n\n%s\n\n---\n\n", section.Title, section.Content)
+		output.WriteString(fmt.Sprintf("## %s\n\n%s\n\n---\n\n", section.Title, section.Content))
 	}
 
-	return mcp.NewToolResultText(output), nil
+	return mcp.NewToolResultText(output.String()), nil
 }
 
 func truncateContent(content string, maxLen int) string {
 	if len(content) <= maxLen {
 		return content
 	}
-	return content[:maxLen] + "..."
+
+	truncated := []rune(content)
+	if maxLen < len(truncated) {
+		truncated = truncated[:maxLen]
+	}
+	return string(truncated) + "..."
 }
 
 func (s *Server) getNamingGuidelines() string {

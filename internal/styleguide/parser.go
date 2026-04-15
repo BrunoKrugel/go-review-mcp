@@ -81,48 +81,7 @@ func ParseContent(content string) *ContentIndex {
 }
 
 func cleanContent(content string) string {
-	content = strings.TrimSpace(content)
-
-	// Remove HTML tags
-	content = removeHTMLTags(content)
-
-	return content
-}
-
-func removeHTMLTags(content string) string {
-	// Common HTML tags to remove
-	htmlTags := []string{
-		"<table>", "</table>",
-		"<thead>", "</thead>",
-		"<tbody>", "</tbody>",
-		"<tr>", "</tr>",
-		"<td>", "</td>",
-		"<th>", "</th>",
-		"<br>", "<br/>",
-		"<hr>", "<hr/>",
-		"<div>", "</div>",
-		"<span>", "</span>",
-		"<p>", "</p>",
-		"<ul>", "</ul>",
-		"<ol>", "</ol>",
-		"<li>", "</li>",
-		"<a>", "</a>",
-		"<strong>", "</strong>",
-		"<em>", "</em>",
-		"<b>", "</b>",
-		"<i>", "</i>",
-	}
-
-	result := content
-	for _, tag := range htmlTags {
-		result = strings.ReplaceAll(result, tag, "")
-	}
-
-	// Remove HTML attributes from remaining tags using regex-like approach
-	// Simple approach: remove anything that looks like <tagname ...> or </tagname>
-	result = removeRemainingTags(result)
-
-	return result
+	return strings.TrimSpace(removeRemainingTags(content))
 }
 
 func removeRemainingTags(content string) string {
@@ -266,32 +225,4 @@ func generateAnchor(title string) string {
 	anchor = strings.ReplaceAll(anchor, "(", "")
 	anchor = strings.ReplaceAll(anchor, ")", "")
 	return anchor
-}
-
-// ExtractCodeExamples extracts code examples from content
-func ExtractCodeExamples(content string) []string {
-	var examples []string
-	lines := strings.Split(content, "\n")
-	var inCodeBlock bool
-	var currentExample strings.Builder
-
-	for _, line := range lines {
-		if strings.HasPrefix(line, "```") {
-			if inCodeBlock {
-				examples = append(examples, currentExample.String())
-				currentExample.Reset()
-				inCodeBlock = false
-			} else {
-				inCodeBlock = true
-			}
-			continue
-		}
-
-		if inCodeBlock {
-			currentExample.WriteString(line)
-			currentExample.WriteString("\n")
-		}
-	}
-
-	return examples
 }

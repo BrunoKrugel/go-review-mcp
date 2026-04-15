@@ -165,12 +165,10 @@ func (f *Fetcher) FetchAll(ctx context.Context) (map[string]string, error) {
 		}(guide)
 	}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		content, err := f.FetchStyleGuide(ctx, uberGuide.URL)
 		results <- result{name: uberGuide.Name, content: content, err: err}
-	}()
+	})
 
 	go func() {
 		wg.Wait()
