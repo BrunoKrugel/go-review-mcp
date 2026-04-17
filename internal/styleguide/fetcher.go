@@ -124,6 +124,7 @@ func (f *Fetcher) fetchFromURL(ctx context.Context, url string) (string, error) 
 
 	req.Header.Set("User-Agent", f.userAgent)
 
+	//nolint:gosec // G107,G704: URLs are hardcoded constants, not user input
 	resp, err := f.client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("http request to %s: %w", url, err)
@@ -165,12 +166,10 @@ func (f *Fetcher) FetchAll(ctx context.Context) (map[string]string, error) {
 		}(guide)
 	}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		content, err := f.FetchStyleGuide(ctx, uberGuide.URL)
 		results <- result{name: uberGuide.Name, content: content, err: err}
-	}()
+	})
 
 	go func() {
 		wg.Wait()

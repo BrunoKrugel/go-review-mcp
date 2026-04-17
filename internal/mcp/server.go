@@ -29,6 +29,7 @@ type Server struct {
 	fetcher   *styleguide.Fetcher
 	indices   map[string]*styleguide.ContentIndex
 	indicesMu sync.RWMutex
+	fetchOnce sync.Once
 }
 
 // NewServer creates a new MCP server with default configuration
@@ -60,27 +61,15 @@ func NewServerWithConfig(cfg *config.Config) *Server {
 }
 
 func (s *Server) registerTools() {
-	// Removed embedded guide tools (get_style_rule, search_style_rules, list_all_rules)
-	// All operations now use live-fetched guides only
-
-	s.AddTool(mcp.Tool{
-		Name:        "fetch_live_guide",
-		Description: "Fetch and parse the latest style guide content from all official URLs (Google and Uber). Call this first before using other tools.",
-		InputSchema: mcp.ToolInputSchema{
-			Type:       "object",
-			Properties: map[string]any{},
-		},
-	}, s.handleFetchLiveGuide)
-
 	s.AddTool(mcp.Tool{
 		Name:        "search_live_guide",
-		Description: "Search through all live-fetched style guides for specific topics or patterns",
+		Description: "Search through all live-fetched Go language style guides for specific topics or patterns. This tool is specifically for Go  code review only.",
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
 				"query": map[string]any{
 					"type":        "string",
-					"description": "Search query to find in guide content",
+					"description": "Search query to find in Go style guide content",
 				},
 			},
 			Required: []string{"query"},
@@ -89,7 +78,7 @@ func (s *Server) registerTools() {
 
 	s.AddTool(mcp.Tool{
 		Name:        "get_guide_topic",
-		Description: "Get all content related to a specific topic from all live-fetched guides",
+		Description: "Get all Go language style guide content related to a specific topic from all live-fetched guides. This tool is specifically for Go  code review only.",
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
@@ -105,7 +94,7 @@ func (s *Server) registerTools() {
 
 	s.AddTool(mcp.Tool{
 		Name:        "get_review_guidelines",
-		Description: "Get curated review guidelines covering major topics",
+		Description: "Get curated Go language code review guidelines covering major topics. This tool is specifically for Go  code review only.",
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
@@ -170,6 +159,7 @@ func createPromptHandler(p prompts.Prompt) func(ctx context.Context, request mcp
 	}
 }
 
+//nolint:gocritic // hugeParam: signature must match mcp.ToolHandlerFunc
 func (s *Server) handleGetReviewGuidelines(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	topic := mcp.ParseString(request, "topic", "")
 
@@ -177,7 +167,8 @@ func (s *Server) handleGetReviewGuidelines(ctx context.Context, request mcp.Call
 		return mcp.NewToolResultError("missing required parameter: topic"), nil
 	}
 
-	output := "# Go Code Review Guidelines\n\n"
+	var output strings.Builder
+	output.WriteString("# Go Code Review Guidelines\n\n")
 
 	topics := []string{topic}
 	if topic == sourceAll {
@@ -187,56 +178,51 @@ func (s *Server) handleGetReviewGuidelines(ctx context.Context, request mcp.Call
 	for _, t := range topics {
 		switch t {
 		case "naming":
-			output += s.getNamingGuidelines()
+			output.WriteString(s.getNamingGuidelines())
 		case "errors":
-			output += s.getErrorGuidelines()
+			output.WriteString(s.getErrorGuidelines())
 		case "concurrency":
-			output += s.getConcurrencyGuidelines()
+			output.WriteString(s.getConcurrencyGuidelines())
 		case "testing":
-			output += s.getTestingGuidelines()
+			output.WriteString(s.getTestingGuidelines())
 		case "interfaces":
-			output += s.getInterfaceGuidelines()
+			output.WriteString(s.getInterfaceGuidelines())
 		default:
 			return mcp.NewToolResultError(fmt.Sprintf("unknown topic: %s", t)), nil
 		}
-		output += "\n"
+		output.WriteString("\n")
 	}
 
-	return mcp.NewToolResultText(output), nil
+	return mcp.NewToolResultText(output.String()), nil
 }
 
-func (s *Server) handleFetchLiveGuide(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	// Always fetch all guides
-	guides, err := s.fetcher.FetchAll(ctx)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("failed to fetch guides: %v", err)), nil
-	}
+// ensureGuides lazily fetches and indexes all style guides on first use.
+func (s *Server) ensureGuides(ctx context.Context) error {
+	var fetchErr error
+	s.fetchOnce.Do(func() {
+		guides, err := s.fetcher.FetchAll(ctx)
+		if err != nil {
+			fetchErr = fmt.Errorf("failed to fetch style guides: %w", err)
+			return
+		}
 
-	s.indicesMu.Lock()
-	for name, content := range guides {
-		s.indices[name] = styleguide.ParseContent(content)
-	}
-	s.indicesMu.Unlock()
-
-	output := "Successfully fetched and indexed all style guides:\n"
-	for name := range guides {
-		output += fmt.Sprintf("- %s\n", name)
-	}
-	return mcp.NewToolResultText(output), nil
+		s.indicesMu.Lock()
+		for name, content := range guides {
+			s.indices[name] = styleguide.ParseContent(content)
+		}
+		s.indicesMu.Unlock()
+	})
+	return fetchErr
 }
 
+//nolint:gocritic // hugeParam: signature must match mcp.ToolHandlerFunc
 func (s *Server) handleSearchLiveGuide(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if err := s.ensureGuides(ctx); err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
 	query := mcp.ParseString(request, "query", "")
 
-	s.indicesMu.RLock()
-	indicesCount := len(s.indices)
-	s.indicesMu.RUnlock()
-
-	if indicesCount == 0 {
-		return mcp.NewToolResultError("no guides fetched yet. Use fetch_live_guide first"), nil
-	}
-
-	// Always search all guides
 	var allResults []styleguide.Section
 
 	s.indicesMu.RLock()
@@ -250,14 +236,16 @@ func (s *Server) handleSearchLiveGuide(ctx context.Context, request mcp.CallTool
 		return mcp.NewToolResultText(fmt.Sprintf("No results found for query: %s", query)), nil
 	}
 
-	output := fmt.Sprintf("Found %d sections matching '%s':\n\n", len(allResults), query)
+	var output strings.Builder
+	fmt.Fprintf(&output, "Found %d sections matching '%s':\n\n", len(allResults), query)
 	for _, section := range allResults {
-		output += fmt.Sprintf("## %s\n\n%s\n\n---\n\n", section.Title, truncateContent(section.Content, maxContentPreview))
+		fmt.Fprintf(&output, "## %s\n\n%s\n\n---\n\n", section.Title, truncateContent(section.Content, maxContentPreview))
 	}
 
-	return mcp.NewToolResultText(output), nil
+	return mcp.NewToolResultText(output.String()), nil
 }
 
+//nolint:gocritic // hugeParam: signature must match mcp.ToolHandlerFunc
 func (s *Server) handleGetGuideTopic(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	topic := mcp.ParseString(request, "topic", "")
 
@@ -265,15 +253,10 @@ func (s *Server) handleGetGuideTopic(ctx context.Context, request mcp.CallToolRe
 		return mcp.NewToolResultError("missing required parameter: topic"), nil
 	}
 
-	s.indicesMu.RLock()
-	indicesCount := len(s.indices)
-	s.indicesMu.RUnlock()
-
-	if indicesCount == 0 {
-		return mcp.NewToolResultError("no guides fetched yet. Use fetch_live_guide first"), nil
+	if err := s.ensureGuides(ctx); err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	// Always search all guides
 	var allSections []styleguide.Section
 
 	s.indicesMu.RLock()
@@ -287,19 +270,25 @@ func (s *Server) handleGetGuideTopic(ctx context.Context, request mcp.CallToolRe
 		return mcp.NewToolResultText(fmt.Sprintf("No content found for topic: %s", topic)), nil
 	}
 
-	output := fmt.Sprintf("# %s\n\nFound %d sections:\n\n", cases.Title(language.English).String(topic), len(allSections))
+	var output strings.Builder
+	fmt.Fprintf(&output, "# %s\n\nFound %d sections:\n\n", cases.Title(language.English).String(topic), len(allSections))
 	for _, section := range allSections {
-		output += fmt.Sprintf("## %s\n\n%s\n\n---\n\n", section.Title, section.Content)
+		fmt.Fprintf(&output, "## %s\n\n%s\n\n---\n\n", section.Title, section.Content)
 	}
 
-	return mcp.NewToolResultText(output), nil
+	return mcp.NewToolResultText(output.String()), nil
 }
 
 func truncateContent(content string, maxLen int) string {
 	if len(content) <= maxLen {
 		return content
 	}
-	return content[:maxLen] + "..."
+
+	truncated := []rune(content)
+	if maxLen < len(truncated) {
+		truncated = truncated[:maxLen]
+	}
+	return string(truncated) + "..."
 }
 
 func (s *Server) getNamingGuidelines() string {
